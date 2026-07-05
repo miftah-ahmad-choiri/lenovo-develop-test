@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WO Dashboard — Lenovo ASP</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      background: #f0f2f5;
+      color: #1f2328;
+      min-height: 100vh;
+    }
+
+    /* ── Top nav ── */
+    .topbar {
+      background: #1f2328;
+      color: #ffffff;
+      padding: 0 28px;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+    .topbar-brand {
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: 0.02em;
+      color: #fff;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .topbar-brand span { color: #e8490f; }
+    .topbar-nav { display: flex; gap: 4px; margin-left: auto; }
+    .topbar-nav a {
+      color: #c9d0d8;
+      text-decoration: none;
+      font-size: 13px;
+      padding: 6px 12px;
+      border-radius: 5px;
+      transition: background 0.15s, color 0.15s;
+    }
+    .topbar-nav a:hover, .topbar-nav a.active {
+      background: rgba(255,255,255,0.12);
+      color: #fff;
+    }
+
+    /* ── Page wrapper ── */
+    .page { max-width: 1200px; margin: 0 auto; padding: 28px 20px 60px; }
+
+    /* ── Stat cards ── */
+    .stat-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+    .stat-card {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 18px 20px;
+    }
+    .stat-card .label { font-size: 12px; color: #57606a; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+    .stat-card .value { font-size: 28px; font-weight: 700; margin-top: 4px; }
+    .stat-card.blue  .value { color: #3b82d4; }
+    .stat-card.green .value { color: #16a34a; }
+    .stat-card.amber .value { color: #d97706; }
+    .stat-card.red   .value { color: #dc2626; }
+
+    /* ── Tabs ── */
+    .tab-bar {
+      display: flex;
+      gap: 0;
+      border-bottom: 2px solid #e5e7eb;
+      margin-bottom: 20px;
+    }
+    .tab-btn {
+      padding: 10px 20px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #57606a;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+      white-space: nowrap;
+    }
+    .tab-btn.active {
+      color: #3b82d4;
+      border-bottom-color: #3b82d4;
+    }
+    .tab-btn:hover:not(.active) { color: #1f2328; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── Table card ── */
+    .table-card {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .table-toolbar {
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid #e5e7eb;
+      flex-wrap: wrap;
+    }
+    .table-toolbar input[type="search"] {
+      padding: 7px 11px;
+      border: 1px solid #d0d7de;
+      border-radius: 6px;
+      font-size: 13px;
+      width: 240px;
+      font-family: inherit;
+    }
+    .table-toolbar input:focus { outline: none; border-color: #3b82d4; box-shadow: 0 0 0 3px rgba(59,130,212,.1); }
+    .toolbar-count { margin-left: auto; font-size: 12px; color: #57606a; }
+
+    .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .data-table thead { background: #f7f8fa; }
+    .data-table th {
+      padding: 10px 12px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 12px;
+      color: #57606a;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      border-bottom: 1px solid #e5e7eb;
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+    }
+    .data-table th:hover { color: #1f2328; }
+    .sort-icon { margin-left: 4px; opacity: 0.4; }
+    .data-table td {
+      padding: 9px 12px;
+      border-bottom: 1px solid #f0f2f5;
+      vertical-align: middle;
+      max-width: 220px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tbody tr:hover { background: #f7f8fa; }
+
+    /* ── Status badges ── */
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .badge-closed    { background: #dcfce7; color: #15803d; }
+    .badge-open      { background: #fef9c3; color: #854d0e; }
+    .badge-transit   { background: #dbeafe; color: #1d4ed8; }
+    .badge-escalated { background: #fee2e2; color: #b91c1c; }
+    .badge-returned  { background: #ede9fe; color: #6d28d9; }
+
+    /* ── Action buttons ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 11px;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 5px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      white-space: nowrap;
+      font-family: inherit;
+      transition: background 0.12s;
+    }
+    .btn-primary   { background: #3b82d4; color: #fff; border-color: #3b82d4; }
+    .btn-primary:hover { background: #2563b0; }
+    .btn-danger    { background: #dc2626; color: #fff; border-color: #dc2626; }
+    .btn-danger:hover  { background: #b91c1c; }
+    .btn-ghost     { background: #f7f8fa; color: #1f2328; border-color: #d0d7de; }
+    .btn-ghost:hover { background: #e5e7eb; }
+    .btn-purple    { background: #7c5cd8; color: #fff; border-color: #7c5cd8; }
+    .btn-purple:hover { background: #6040b8; }
+    .btn-sm { padding: 4px 9px; font-size: 11px; }
+
+    .btn-group { display: flex; gap: 5px; }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: #fff;
+      border-radius: 10px;
+      width: 100%;
+      max-width: 520px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+    }
+    .modal-header {
+      padding: 18px 20px 14px;
+      border-bottom: 1px solid #e5e7eb;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .modal-title { font-size: 15px; font-weight: 700; }
+    .modal-subtitle { font-size: 12px; color: #57606a; margin-top: 2px; }
+    .modal-close {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #57606a;
+      font-size: 20px;
+      line-height: 1;
+      padding: 2px 6px;
+    }
+    .modal-close:hover { color: #1f2328; }
+    .modal-body { padding: 20px; }
+    .modal-footer {
+      padding: 14px 20px;
+      border-top: 1px solid #e5e7eb;
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    /* ── Form elements inside modal ── */
+    .mform-group { margin-bottom: 16px; }
+    .mform-group label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px; color: #1f2328; }
+    .mform-group label .req { color: #dc2626; margin-left: 2px; }
+    .mform-group input,
+    .mform-group select,
+    .mform-group textarea {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #d0d7de;
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: inherit;
+      color: #1f2328;
+    }
+    .mform-group input:focus,
+    .mform-group select:focus,
+    .mform-group textarea:focus {
+      outline: none;
+      border-color: #3b82d4;
+      box-shadow: 0 0 0 3px rgba(59,130,212,.1);
+    }
+    .mform-group textarea { resize: vertical; min-height: 80px; }
+    .mform-group select {
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%2357606a' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      padding-right: 28px;
+    }
+
+    .file-upload-zone {
+      border: 2px dashed #d0d7de;
+      border-radius: 6px;
+      padding: 20px;
+      text-align: center;
+      cursor: pointer;
+      color: #3b82d4;
+      font-weight: 600;
+      font-size: 13px;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .file-upload-zone:hover { border-color: #3b82d4; background: #f0f5ff; }
+    .file-upload-zone input { display: none; }
+    .file-upload-name { font-size: 11px; color: #57606a; margin-top: 6px; }
+
+    /* ── WO info strip in modal ── */
+    .wo-info-strip {
+      background: #f7f8fa;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      padding: 10px 14px;
+      margin-bottom: 16px;
+      font-size: 12px;
+    }
+    .wo-info-strip .wo-num { font-weight: 700; font-size: 14px; color: #1f2328; }
+    .wo-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; margin-top: 6px; }
+    .wo-info-grid span { color: #57606a; }
+    .wo-info-grid strong { color: #1f2328; }
+
+    /* ── Toast ── */
+    .toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 200; display: flex; flex-direction: column; gap: 8px; }
+    .toast {
+      background: #1f2328;
+      color: #fff;
+      padding: 11px 16px;
+      border-radius: 7px;
+      font-size: 13px;
+      min-width: 240px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 0.2s, transform 0.2s;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.success { border-left: 3px solid #22c55e; }
+    .toast.error   { border-left: 3px solid #dc2626; }
+
+    /* ── Empty state ── */
+    .empty-state { padding: 40px; text-align: center; color: #57606a; font-size: 13px; }
+
+    /* ── Pagination ── */
+    .pagination { display: flex; gap: 4px; align-items: center; padding: 12px 16px; justify-content: flex-end; border-top: 1px solid #e5e7eb; }
+    .page-btn {
+      padding: 4px 10px;
+      border: 1px solid #d0d7de;
+      border-radius: 5px;
+      background: #fff;
+      font-size: 12px;
+      cursor: pointer;
+      font-family: inherit;
+      color: #1f2328;
+    }
+    .page-btn.active { background: #3b82d4; color: #fff; border-color: #3b82d4; }
+    .page-btn:hover:not(.active):not(:disabled) { background: #f7f8fa; }
+    .page-btn:disabled { opacity: 0.4; cursor: default; }
+    .page-info { font-size: 12px; color: #57606a; margin-right: auto; padding-left: 4px; }
+
+    @media (max-width: 768px) {
+      .stat-row { grid-template-columns: 1fr 1fr; }
+      .data-table td, .data-table th { padding: 7px 8px; }
+    }
+    @media (max-width: 480px) {
+      .stat-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div class="topbar">
+  <a class="topbar-brand" href="/">Lenovo <span>ASP</span></a>
+  <nav class="topbar-nav">
+    <a href="/">Ticket Form</a>
+    <a href="/dashboard" class="active">WO Dashboard</a>
+  </nav>
+</div>
+
+<div class="page">
+
+  <!-- Stat cards -->
+  <div class="stat-row">
+    <div class="stat-card blue">
+      <div class="label">Total WO</div>
+      <div class="value">{{ total }}</div>
+    </div>
+    <div class="stat-card green">
+      <div class="label">Closed</div>
+      <div class="value">{{ total_closed }}</div>
+    </div>
+    <div class="stat-card amber">
+      <div class="label">Open / Pending</div>
+      <div class="value">{{ total_open }}</div>
+    </div>
+    <div class="stat-card red">
+      <div class="label">Part in Transit</div>
+      <div class="value">{{ total_transit }}</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tab-bar">
+    <button class="tab-btn active" data-tab="tab-all">All Open WO &amp; Status</button>
+    <button class="tab-btn" data-tab="tab-part-received">Part Received Confirmation</button>
+    <button class="tab-btn" data-tab="tab-part-return">Part Return Status</button>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════ TAB 1: ALL WO -->
+  <div class="tab-panel active" id="tab-all">
+    <div class="table-card">
+      <div class="table-toolbar">
+        <input type="search" id="search-all" placeholder="Search WO, contact, city…" />
+        <select id="filter-status-all" style="padding:7px 28px 7px 10px;border:1px solid #d0d7de;border-radius:6px;font-size:13px;font-family:inherit;appearance:none;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%2357606a' d='M1 1l5 5 5-5'/%3E%3C/svg%3E\");background-repeat:no-repeat;background-position:right 8px center;">
+          <option value="">All Statuses</option>
+          <option value="Closed">Closed</option>
+          <option value="Need Additional Part">Need Additional Part</option>
+          <option value="ASP Issue">ASP Issue</option>
+        </select>
+        <span class="toolbar-count" id="count-all"></span>
+      </div>
+      <div id="table-all-container"></div>
+      <div class="pagination" id="pagination-all"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════ TAB 2: PART RECEIVED -->
+  <div class="tab-panel" id="tab-part-received">
+    <div class="table-card">
+      <div class="table-toolbar">
+        <input type="search" id="search-transit" placeholder="Search WO, contact, city…" />
+        <span class="toolbar-count" id="count-transit"></span>
+      </div>
+      <div id="table-transit-container"></div>
+      <div class="pagination" id="pagination-transit"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════ TAB 3: PART RETURN -->
+  <div class="tab-panel" id="tab-part-return">
+    <div class="table-card">
+      <div class="table-toolbar">
+        <input type="search" id="search-return" placeholder="Search WO, contact, city…" />
+        <span class="toolbar-count" id="count-return"></span>
+      </div>
+      <div id="table-return-container"></div>
+      <div class="pagination" id="pagination-return"></div>
+    </div>
+  </div>
+
+</div><!-- /page -->
+
+<!-- ═══════════════════════════════ MODAL: Part Received Confirmation -->
+<div class="modal-overlay" id="modal-received">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Part Received Confirmation</div>
+        <div class="modal-subtitle" id="modal-received-subtitle">CCI — Parts in Transit</div>
+      </div>
+      <button class="modal-close" data-close="modal-received">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="wo-info-strip" id="received-wo-info">
+        <div class="wo-num" id="received-wo-num">—</div>
+        <div class="wo-info-grid">
+          <div><span>Contact: </span><strong id="received-contact">—</strong></div>
+          <div><span>City: </span><strong id="received-city">—</strong></div>
+          <div><span>Parts ETA: </span><strong id="received-eta">—</strong></div>
+          <div><span>Product: </span><strong id="received-product">—</strong></div>
+        </div>
+      </div>
+
+      <div class="mform-group">
+        <label>Upload AWB (Air Waybill) <span class="req">*</span></label>
+        <label class="file-upload-zone" for="awb-file">
+          <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" style="margin:0 auto 4px;display:block">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 12V4m0 0L8 8m4-4l4 4"/>
+          </svg>
+          Click to upload AWB document or image
+          <input type="file" id="awb-file" accept=".pdf,.png,.jpg,.jpeg" />
+        </label>
+        <div class="file-upload-name" id="awb-file-name">No file chosen</div>
+      </div>
+
+      <div class="mform-group">
+        <label>Received Date &amp; Time <span class="req">*</span></label>
+        <input type="datetime-local" id="received-datetime" />
+      </div>
+
+      <hr style="border:none;border-top:1px solid #e5e7eb;margin:18px 0 16px" />
+      <p style="font-size:12px;font-weight:700;text-transform:uppercase;color:#dc2626;letter-spacing:.04em;margin-bottom:12px">Escalate Issue</p>
+
+      <div class="mform-group">
+        <label>Escalation Reason</label>
+        <select id="received-escalation">
+          <option value="">— No issue / Normal receipt —</option>
+          <option value="Wrong Part Received">Wrong Part Received</option>
+          <option value="DOA">DOA (Dead on Arrival)</option>
+          <option value="Wrong Route">Wrong Route</option>
+          <option value="Incomplete">Incomplete (Missing items)</option>
+        </select>
+      </div>
+
+      <div class="mform-group" id="received-escalation-note-group" style="display:none">
+        <label>Escalation Notes <span class="req">*</span></label>
+        <textarea id="received-escalation-note" placeholder="Describe the issue in detail…"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-close="modal-received">Cancel</button>
+      <button class="btn btn-danger" id="btn-escalate-only" style="display:none">Escalate Only</button>
+      <button class="btn btn-primary" id="btn-confirm-received">Confirm Receipt</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ MODAL: Part Return -->
+<div class="modal-overlay" id="modal-return">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Part Return</div>
+        <div class="modal-subtitle" id="modal-return-subtitle">Enter return shipment details</div>
+      </div>
+      <button class="modal-close" data-close="modal-return">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="wo-info-strip">
+        <div class="wo-num" id="return-wo-num">—</div>
+        <div class="wo-info-grid">
+          <div><span>Contact: </span><strong id="return-contact">—</strong></div>
+          <div><span>City: </span><strong id="return-city">—</strong></div>
+          <div><span>WO Closed: </span><strong id="return-wo-closed">—</strong></div>
+          <div><span>Product: </span><strong id="return-product">—</strong></div>
+        </div>
+      </div>
+
+      <div class="mform-group">
+        <label>DC Number (Delivery/Collection Number) <span class="req">*</span></label>
+        <input type="text" id="return-dc-number" placeholder="e.g. DC-2024-001234" />
+      </div>
+
+      <div class="mform-group">
+        <label>Return Shipment Date <span class="req">*</span></label>
+        <input type="datetime-local" id="return-date" />
+      </div>
+
+      <hr style="border:none;border-top:1px solid #e5e7eb;margin:18px 0 16px" />
+      <p style="font-size:12px;font-weight:700;text-transform:uppercase;color:#dc2626;letter-spacing:.04em;margin-bottom:12px">Escalation if Issue</p>
+
+      <div class="mform-group">
+        <label>Issue Type</label>
+        <select id="return-issue">
+          <option value="">— No issue —</option>
+          <option value="Part Not Picked Up">Part Not Picked Up by Courier</option>
+          <option value="Lost in Transit">Lost in Transit</option>
+          <option value="Wrong DC Number">Wrong DC Number</option>
+          <option value="Part Damaged">Part Damaged During Return</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+
+      <div class="mform-group" id="return-issue-note-group" style="display:none">
+        <label>Issue Description <span class="req">*</span></label>
+        <textarea id="return-issue-note" placeholder="Describe the return issue…"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-close="modal-return">Cancel</button>
+      <button class="btn btn-primary" id="btn-confirm-return">Submit Return</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- ═══════════════════════════════════ DATA + JS ══════════════════════════════ -->
+<script>
+const ALL_WO      = {{ wo_data_json | safe }};
+const TRANSIT_WO  = {{ transit_json  | safe }};
+const CLOSED_WO   = {{ closed_json   | safe }};
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function fmtDate(s) {
+  if (!s) return '—';
+  return s.replace('T', ' ').slice(0, 16);
+}
+
+function statusBadge(status) {
+  if (!status || status === '—') return '<span class="badge badge-transit">Unknown</span>';
+  if (status === 'Closed')               return '<span class="badge badge-closed">Closed</span>';
+  if (status === 'Need Additional Part') return '<span class="badge badge-open">Need Add\'l Part</span>';
+  if (status === 'ASP Issue')            return '<span class="badge badge-escalated">ASP Issue</span>';
+  return `<span class="badge badge-open">${status}</span>`;
+}
+
+function escHTML(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showToast(msg, type='success') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  document.getElementById('toast-container').appendChild(el);
+  requestAnimationFrame(() => { requestAnimationFrame(() => el.classList.add('show')); });
+  setTimeout(() => {
+    el.classList.remove('show');
+    setTimeout(() => el.remove(), 300);
+  }, 3500);
+}
+
+// ── Generic paged table renderer ─────────────────────────────────────────────
+
+function makeTable(cfg) {
+  // cfg: { containerId, paginationId, countId, data, columns, rowActions, pageSize }
+  let filtered = [...cfg.data];
+  let currentPage = 1;
+  const pageSize = cfg.pageSize || 15;
+
+  function render() {
+    const container   = document.getElementById(cfg.containerId);
+    const paginationEl = document.getElementById(cfg.paginationId);
+    const countEl     = document.getElementById(cfg.countId);
+    const total       = filtered.length;
+    const pages       = Math.max(1, Math.ceil(total / pageSize));
+    if (currentPage > pages) currentPage = pages;
+    const slice = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+    countEl.textContent = `${total} record${total !== 1 ? 's' : ''}`;
+
+    if (total === 0) {
+      container.innerHTML = '<div class="empty-state">No records found.</div>';
+      paginationEl.innerHTML = '';
+      return;
+    }
+
+    // Table
+    let html = '<table class="data-table"><thead><tr>';
+    cfg.columns.forEach(col => {
+      html += `<th>${escHTML(col.label)}</th>`;
+    });
+    if (cfg.rowActions) html += '<th>Actions</th>';
+    html += '</tr></thead><tbody>';
+
+    slice.forEach(row => {
+      html += '<tr>';
+      cfg.columns.forEach(col => {
+        const val = col.render ? col.render(row) : escHTML(row[col.key] || '—');
+        html += `<td title="${escHTML(String(row[col.key] || ''))}">${val}</td>`;
+      });
+      if (cfg.rowActions) {
+        html += `<td><div class="btn-group">${cfg.rowActions(row)}</div></td>`;
+      }
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+    container.innerHTML = html;
+
+    // Attach row action handlers
+    if (cfg.onRowAction) cfg.onRowAction(slice);
+
+    // Pagination
+    let pHtml = `<span class="page-info">Page ${currentPage} of ${pages}</span>`;
+    pHtml += `<button class="page-btn" ${currentPage===1?'disabled':''} data-page="prev">&#8592;</button>`;
+    const startPage = Math.max(1, currentPage - 2);
+    const endPage   = Math.min(pages, startPage + 4);
+    for (let p = startPage; p <= endPage; p++) {
+      pHtml += `<button class="page-btn ${p===currentPage?'active':''}" data-page="${p}">${p}</button>`;
+    }
+    pHtml += `<button class="page-btn" ${currentPage===pages?'disabled':''} data-page="next">&#8594;</button>`;
+    paginationEl.innerHTML = pHtml;
+    paginationEl.querySelectorAll('[data-page]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const p = btn.dataset.page;
+        if (p === 'prev') currentPage--;
+        else if (p === 'next') currentPage++;
+        else currentPage = parseInt(p);
+        render();
+      });
+    });
+  }
+
+  return {
+    filter(fn) { filtered = cfg.data.filter(fn); currentPage = 1; render(); },
+    reset()    { filtered = [...cfg.data]; currentPage = 1; render(); },
+    render,
+  };
+}
+
+// ── TAB 1: All WO ─────────────────────────────────────────────────────────────
+
+const allTable = makeTable({
+  containerId: 'table-all-container',
+  paginationId: 'pagination-all',
+  countId: 'count-all',
+  data: ALL_WO,
+  pageSize: 15,
+  columns: [
+    { key: 'wo',         label: 'WO Number' },
+    { key: 'contact',    label: 'Contact / ASP' },
+    { key: 'city',       label: 'City' },
+    { key: 'created_on', label: 'Created On', render: r => escHTML(fmtDate(r.created_on)) },
+    { key: 'parts_eta',  label: 'Parts ETA',  render: r => escHTML(fmtDate(r.parts_eta)) },
+    { key: 'asp_received', label: 'ASP Received', render: r => r.asp_received ? escHTML(fmtDate(r.asp_received)) : '<span style="color:#d97706">Pending</span>' },
+    { key: 'wo_closed',  label: 'WO Closed',  render: r => r.wo_closed ? escHTML(fmtDate(r.wo_closed)) : '<span style="color:#d97706">Open</span>' },
+    { key: 'status',     label: 'Status',     render: r => statusBadge(r.status) },
+    { key: 'failed_reason', label: 'Reason' },
+    { key: 'product',    label: 'Product Category' },
+  ],
+});
+allTable.render();
+
+document.getElementById('search-all').addEventListener('input', e => {
+  const q = e.target.value.toLowerCase();
+  const st = document.getElementById('filter-status-all').value;
+  allTable.filter(r =>
+    (!q || r.wo.toLowerCase().includes(q) || r.contact.toLowerCase().includes(q) || r.city.toLowerCase().includes(q) || r.product.toLowerCase().includes(q)) &&
+    (!st || r.status === st)
+  );
+});
+document.getElementById('filter-status-all').addEventListener('change', () => {
+  document.getElementById('search-all').dispatchEvent(new Event('input'));
+});
+
+// ── TAB 2: Part Received ───────────────────────────────────────────────────────
+
+const transitTable = makeTable({
+  containerId: 'table-transit-container',
+  paginationId: 'pagination-transit',
+  countId: 'count-transit',
+  data: TRANSIT_WO,
+  pageSize: 15,
+  columns: [
+    { key: 'wo',       label: 'WO Number' },
+    { key: 'contact',  label: 'Contact / ASP' },
+    { key: 'city',     label: 'City' },
+    { key: 'parts_eta', label: 'Parts ETA', render: r => escHTML(fmtDate(r.parts_eta)) },
+    { key: 'status',   label: 'Status',  render: r => statusBadge(r.status) },
+    { key: 'product',  label: 'Product Category' },
+    { key: 'remark',   label: 'Remark' },
+  ],
+  rowActions: r => `
+    <button class="btn btn-primary btn-sm" data-action="confirm-received" data-wo="${escHTML(r.wo)}">Confirm Receipt</button>
+    <button class="btn btn-danger btn-sm"  data-action="escalate-received" data-wo="${escHTML(r.wo)}">Escalate</button>
+  `,
+  onRowAction: (slice) => {
+    document.querySelectorAll('[data-action="confirm-received"], [data-action="escalate-received"]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const wo = btn.dataset.wo;
+        const row = TRANSIT_WO.find(r => r.wo === wo);
+        openReceivedModal(row, btn.dataset.action === 'escalate-received');
+      });
+    });
+  },
+});
+transitTable.render();
+
+document.getElementById('search-transit').addEventListener('input', e => {
+  const q = e.target.value.toLowerCase();
+  transitTable.filter(r => !q || r.wo.toLowerCase().includes(q) || r.contact.toLowerCase().includes(q) || r.city.toLowerCase().includes(q));
+});
+
+// ── TAB 3: Part Return ────────────────────────────────────────────────────────
+
+const returnTable = makeTable({
+  containerId: 'table-return-container',
+  paginationId: 'pagination-return',
+  countId: 'count-return',
+  data: CLOSED_WO,
+  pageSize: 15,
+  columns: [
+    { key: 'wo',         label: 'WO Number' },
+    { key: 'contact',    label: 'Contact / ASP' },
+    { key: 'city',       label: 'City' },
+    { key: 'wo_closed',  label: 'WO Closed', render: r => escHTML(fmtDate(r.wo_closed)) },
+    { key: 'status',     label: 'Status',    render: r => statusBadge(r.status) },
+    { key: 'product',    label: 'Product Category' },
+  ],
+  rowActions: r => `
+    <button class="btn btn-purple btn-sm" data-action="part-return" data-wo="${escHTML(r.wo)}">Input Return</button>
+  `,
+  onRowAction: (slice) => {
+    document.querySelectorAll('[data-action="part-return"]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const wo = btn.dataset.wo;
+        const row = CLOSED_WO.find(r => r.wo === wo);
+        openReturnModal(row);
+      });
+    });
+  },
+});
+returnTable.render();
+
+document.getElementById('search-return').addEventListener('input', e => {
+  const q = e.target.value.toLowerCase();
+  returnTable.filter(r => !q || r.wo.toLowerCase().includes(q) || r.contact.toLowerCase().includes(q) || r.city.toLowerCase().includes(q));
+});
+
+// ── Modal: Part Received ───────────────────────────────────────────────────────
+
+let activeReceivedWO = null;
+
+function openReceivedModal(row, escalateMode = false) {
+  activeReceivedWO = row;
+  document.getElementById('received-wo-num').textContent   = row.wo;
+  document.getElementById('received-contact').textContent  = row.contact;
+  document.getElementById('received-city').textContent     = row.city;
+  document.getElementById('received-eta').textContent      = fmtDate(row.parts_eta) || '—';
+  document.getElementById('received-product').textContent  = row.product;
+  document.getElementById('received-datetime').value       = '';
+  document.getElementById('received-escalation').value     = '';
+  document.getElementById('received-escalation-note').value = '';
+  document.getElementById('awb-file-name').textContent     = 'No file chosen';
+  document.getElementById('received-escalation-note-group').style.display = 'none';
+  document.getElementById('btn-escalate-only').style.display = 'none';
+  if (escalateMode) {
+    document.getElementById('modal-received-subtitle').textContent = 'Escalate Issue';
+    document.getElementById('btn-escalate-only').style.display = 'inline-flex';
+  } else {
+    document.getElementById('modal-received-subtitle').textContent = 'CCI — Parts in Transit';
+  }
+  openModal('modal-received');
+}
+
+document.getElementById('received-escalation').addEventListener('change', function() {
+  const hasEscalation = !!this.value;
+  document.getElementById('received-escalation-note-group').style.display = hasEscalation ? 'block' : 'none';
+  document.getElementById('btn-escalate-only').style.display = hasEscalation ? 'inline-flex' : 'none';
+});
+
+document.getElementById('awb-file').addEventListener('change', function() {
+  document.getElementById('awb-file-name').textContent = this.files[0] ? this.files[0].name : 'No file chosen';
+});
+
+document.getElementById('btn-confirm-received').addEventListener('click', () => {
+  const dt = document.getElementById('received-datetime').value;
+  if (!dt) { showToast('Please enter the received date & time.', 'error'); return; }
+  const escalation = document.getElementById('received-escalation').value;
+  if (escalation) {
+    const note = document.getElementById('received-escalation-note').value.trim();
+    if (!note) { showToast('Please describe the escalation issue.', 'error'); return; }
+    showToast(`WO ${activeReceivedWO.wo} — receipt confirmed with escalation: ${escalation}`, 'success');
+  } else {
+    showToast(`WO ${activeReceivedWO.wo} — part receipt confirmed ✓`, 'success');
+  }
+  closeModal('modal-received');
+});
+
+document.getElementById('btn-escalate-only').addEventListener('click', () => {
+  const escalation = document.getElementById('received-escalation').value;
+  const note = document.getElementById('received-escalation-note').value.trim();
+  if (!escalation) { showToast('Please select an escalation reason.', 'error'); return; }
+  if (!note)        { showToast('Please describe the issue.', 'error'); return; }
+  showToast(`WO ${activeReceivedWO.wo} — escalated: ${escalation}`, 'error');
+  closeModal('modal-received');
+});
+
+// ── Modal: Part Return ─────────────────────────────────────────────────────────
+
+let activeReturnWO = null;
+
+function openReturnModal(row) {
+  activeReturnWO = row;
+  document.getElementById('return-wo-num').textContent    = row.wo;
+  document.getElementById('return-contact').textContent   = row.contact;
+  document.getElementById('return-city').textContent      = row.city;
+  document.getElementById('return-wo-closed').textContent = fmtDate(row.wo_closed) || '—';
+  document.getElementById('return-product').textContent   = row.product;
+  document.getElementById('return-dc-number').value       = '';
+  document.getElementById('return-date').value            = '';
+  document.getElementById('return-issue').value           = '';
+  document.getElementById('return-issue-note').value      = '';
+  document.getElementById('return-issue-note-group').style.display = 'none';
+  openModal('modal-return');
+}
+
+document.getElementById('return-issue').addEventListener('change', function() {
+  document.getElementById('return-issue-note-group').style.display = this.value ? 'block' : 'none';
+});
+
+document.getElementById('btn-confirm-return').addEventListener('click', () => {
+  const dc   = document.getElementById('return-dc-number').value.trim();
+  const dt   = document.getElementById('return-date').value;
+  const issue = document.getElementById('return-issue').value;
+  if (!dc) { showToast('Please enter the DC Number.', 'error'); return; }
+  if (!dt) { showToast('Please enter the return shipment date.', 'error'); return; }
+  if (issue) {
+    const note = document.getElementById('return-issue-note').value.trim();
+    if (!note) { showToast('Please describe the issue.', 'error'); return; }
+    showToast(`WO ${activeReturnWO.wo} — return submitted with issue: ${issue}`, 'error');
+  } else {
+    showToast(`WO ${activeReturnWO.wo} — part return submitted (DC: ${dc}) ✓`, 'success');
+  }
+  closeModal('modal-return');
+});
+
+// ── Tab switching ─────────────────────────────────────────────────────────────
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ── Modal helpers ─────────────────────────────────────────────────────────────
+
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+document.querySelectorAll('[data-close]').forEach(btn => {
+  btn.addEventListener('click', () => closeModal(btn.dataset.close));
+});
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) closeModal(overlay.id);
+  });
+});
+</script>
+</body>
+</html>
