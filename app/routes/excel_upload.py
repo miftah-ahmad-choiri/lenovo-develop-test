@@ -1,12 +1,11 @@
 import os
-import subprocess
-import sys
 from datetime import datetime
 from flask import (
     Blueprint, render_template, request, redirect,
     url_for, flash, current_app, send_file,
 )
 from app.services.excel_upload_service import allowed_excel, save_excel_upload, list_excel_uploads
+from app.services.wo_onsite.pipeline import run_pipeline_to_buffer
 
 excel_upload_bp = Blueprint("excel_upload", __name__)
 
@@ -85,22 +84,18 @@ def reset_excel():
 
 @excel_upload_bp.route("/upload-excel/compile", methods=["POST"])
 def compile_report():
-    """Run the WO Onsite pipeline to regenerate df_combined_final_report.xlsx."""
+    """Run the WO Onsite pipeline and stream the result directly as a download."""
     try:
-        result = subprocess.run(
-            [sys.executable, "-m", "app.services.wo_onsite.pipeline"],
-            capture_output=True, text=True, timeout=300
+        buf, filename = run_pipeline_to_buffer()
+        return send_file(
+            buf,
+            as_attachment=True,
+            download_name=filename,
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
-        if result.returncode == 0:
-            flash("Report compiled successfully. Dashboard data has been refreshed.", "success")
-        else:
-            err = (result.stderr or result.stdout or "Unknown error").strip().splitlines()[-1]
-            flash(f"Compile failed: {err}", "danger")
-    except subprocess.TimeoutExpired:
-        flash("Compile timed out (> 5 min). Please try again.", "danger")
     except Exception as e:
         flash(f"Compile error: {e}", "danger")
-    return redirect(url_for("excel_upload.upload_excel"))
+        return redirect(url_for("excel_upload.upload_excel"))
 
 
 @excel_upload_bp.route("/upload-excel/download")

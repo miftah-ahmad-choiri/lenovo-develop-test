@@ -7,6 +7,7 @@ Run this file directly to regenerate excels/df_combined_final_report.xlsx:
     # or
     python app/services/wo_onsite/pipeline.py
 """
+import io
 import os
 from datetime import datetime
 import pandas as pd
@@ -96,6 +97,24 @@ def run_pipeline() -> pd.DataFrame:
 
     print(f"Exported {len(df_report)} rows. Done. Stamped: {stamped_name}")
     return df_report
+
+
+def run_pipeline_to_buffer() -> tuple[io.BytesIO, str]:
+    """
+    Execute the full pipeline and return the result as an in-memory Excel buffer.
+    Nothing is written to disk — safe for ephemeral filesystems (e.g. Render free tier).
+
+    Returns:
+        (buffer, download_filename)
+    """
+    df_report = run_pipeline()
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"Masterfile_{ts}.xlsx"
+
+    buf = io.BytesIO()
+    df_report.to_excel(buf, index=False)
+    buf.seek(0)
+    return buf, filename
 
 
 if __name__ == "__main__":
