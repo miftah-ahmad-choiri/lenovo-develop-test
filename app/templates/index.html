@@ -250,6 +250,12 @@
       border-radius: 8px;
       overflow: hidden;
     }
+    .table-scroll {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    /* Keep full table width so columns never squash */
+    .table-scroll .data-table { width: max-content; min-width: 100%; }
     .table-toolbar {
       padding: 12px 16px;
       display: flex;
@@ -318,10 +324,14 @@
       font-weight: 600;
       white-space: nowrap;
     }
-    .badge-closed    { background: #dcfce7; color: #15803d; }
-    .badge-open      { background: #fef9c3; color: #854d0e; }
-    .badge-escalated { background: #fee2e2; color: #b91c1c; }
-    .badge-transit   { background: #dbeafe; color: #1d4ed8; }
+    .badge-closed      { background: #dcfce7; color: #15803d; }   /* Completed / Delivered */
+    .badge-shipped     { background: #e0f2fe; color: #0369a1; }   /* Shipped */
+    .badge-part-hold   { background: #fff7ed; color: #c2410c; }   /* On Hold – Part Hold */
+    .badge-on-hold     { background: #fef9c3; color: #854d0e; }   /* on hold (generic) */
+    .badge-escalated   { background: #fee2e2; color: #b91c1c; }   /* Cancelled / issue */
+    .badge-returned    { background: #ede9fe; color: #6d28d9; }   /* returned */
+    .badge-transit     { background: #dbeafe; color: #1d4ed8; }   /* waiting part */
+    .badge-open        { background: #f0fdf4; color: #166534; }   /* waiting for repair */
 
     /* Action buttons */
     .btn {
@@ -528,8 +538,7 @@
 <div class="topbar">
   <a class="topbar-brand" href="/">Lenovo <span>ASP</span> Portal</a>
   <nav class="topbar-nav">
-    <a href="/" class="active">Ticket Form</a>
-    <a href="/dashboard">WO Dashboard</a>
+    <a href="/" class="active">Dashboard</a>
     <a href="/upload-excel">Excel Upload</a>
   </nav>
 </div>
@@ -548,22 +557,22 @@
     {% endif %}
   {% endwith %}
 
-  <!-- Stat cards — clicking "Open" jumps to All WO tab -->
+  <!-- Stat cards — WO data -->
   <div class="stat-row">
     <div class="stat-card blue"  data-goto="tab-all">
       <div class="sc-label">Total WO</div>
       <div class="sc-value">{{ total }}</div>
     </div>
     <div class="stat-card green" data-goto="tab-all">
-      <div class="sc-label">Closed</div>
+      <div class="sc-label">Completed</div>
       <div class="sc-value">{{ total_closed }}</div>
     </div>
     <div class="stat-card amber" data-goto="tab-all">
-      <div class="sc-label">Open / Pending</div>
+      <div class="sc-label">Open / Active</div>
       <div class="sc-value">{{ total_open }}</div>
     </div>
     <div class="stat-card red"   data-goto="tab-part-received">
-      <div class="sc-label">Part In-Transit</div>
+      <div class="sc-label">On Hold – Part</div>
       <div class="sc-value">{{ total_transit }}</div>
     </div>
   </div>
@@ -571,16 +580,19 @@
   <!-- Tab bar -->
   <div class="tab-bar">
     <button class="tab-btn active" data-tab="tab-all">
-      All Open WO &amp; Status
+      All WO
     </button>
     <button class="tab-btn" data-tab="tab-part-received">
-      Part Received Confirmation
+      Part Received
     </button>
     <button class="tab-btn" data-tab="tab-part-return">
-      Part Return Status
+      Part Return
     </button>
     <button class="tab-btn" data-tab="tab-reschedule">
       WO Reschedule
+    </button>
+    <button class="tab-btn" data-tab="tab-onsite">
+      WO Onsite
     </button>
   </div>
 
@@ -627,7 +639,7 @@
     </div>
   </div>
 
-  <!-- ═══ TAB: WO Reschedule (opens modal, no inline content) ════════════ -->
+  <!-- ═══ TAB: WO Reschedule ════════════════════════════════════════════════ -->
   <div class="tab-panel" id="tab-reschedule">
     <div class="table-card">
       <div class="table-toolbar">
@@ -637,7 +649,26 @@
       <div id="tbl-reschedule"></div>
       <div class="pagination" id="pg-reschedule"></div>
     </div>
-  </div><!-- /tab-reschedule -->
+  </div>
+
+  <!-- ═══ TAB: WO Onsite ═════════════════════════════════════════════════════ -->
+  <div class="tab-panel" id="tab-onsite">
+    <div class="table-card">
+      <div class="table-toolbar">
+        <input type="search" id="search-onsite" placeholder="Search WO, ASP, product, status…" />
+        <select class="filter-select" id="filter-status-onsite">
+          <option value="">All Statuses</option>
+          <option value="on hold - part hold">On Hold – Part Hold</option>
+          <option value="shipped">Shipped</option>
+          <option value="delivered">Delivered</option>
+          <option value="completed">Completed</option>
+        </select>
+        <span class="toolbar-count" id="count-onsite"></span>
+      </div>
+      <div id="tbl-onsite"></div>
+      <div class="pagination" id="pg-onsite"></div>
+    </div>
+  </div>
 
 </div><!-- /layout -->
 
@@ -863,7 +894,7 @@
 <script>
 // ── Dataset from server ───────────────────────────────────────────────────────
 const ALL_WO     = {{ wo_data_json | safe }};
-const OPEN_WO    = {{ open_wo_json | safe }};   // status !== 'Closed'
+const OPEN_WO    = {{ open_wo_json | safe }};
 const TRANSIT_WO = {{ transit_json  | safe }};
 const CLOSED_WO  = {{ closed_json   | safe }};
 
@@ -871,11 +902,17 @@ const CLOSED_WO  = {{ closed_json   | safe }};
 function fmtDate(s) { return s ? s.slice(0, 16).replace('T', ' ') : '—'; }
 
 function statusBadge(s) {
-  if (!s || s === '—')                return '<span class="badge badge-transit">Unknown</span>';
-  if (s === 'Closed')                  return '<span class="badge badge-closed">Closed</span>';
-  if (s === 'Need Additional Part')    return '<span class="badge badge-open">Need Add\'l Part</span>';
-  if (s === 'ASP Issue')               return '<span class="badge badge-escalated">ASP Issue</span>';
-  return `<span class="badge badge-open">${esc(s)}</span>`;
+  if (!s || s === '—') return '<span class="badge badge-transit">—</span>';
+  const sl = s.toLowerCase();
+  if (sl === 'delivered')                 return `<span class="badge badge-closed">Delivered</span>`;
+  if (sl === 'completed')                 return `<span class="badge badge-closed">Completed</span>`;
+  if (sl === 'shipped')                   return `<span class="badge badge-shipped">Shipped</span>`;
+  if (sl.includes('part hold'))           return `<span class="badge badge-part-hold">${esc(s)}</span>`;
+  if (sl === 'on hold')                   return `<span class="badge badge-on-hold">On Hold</span>`;
+  if (sl.includes('waiting part'))        return `<span class="badge badge-transit">Waiting Part</span>`;
+  if (sl.includes('waiting for repair'))  return `<span class="badge badge-open">Waiting for Repair</span>`;
+  if (sl.includes('cancel'))             return `<span class="badge badge-escalated">${esc(s)}</span>`;
+  return `<span class="badge badge-on-hold">${esc(s)}</span>`;
 }
 
 function esc(s) {
@@ -913,7 +950,7 @@ function makeTable({ tblId, pgId, cntId, data, cols, actions, onBind, pageSize =
       return;
     }
 
-    let h = '<table class="data-table"><thead><tr>';
+    let h = '<div class="table-scroll"><table class="data-table"><thead><tr>';
     cols.forEach(c => { h += `<th>${esc(c.label)}</th>`; });
     if (actions) h += '<th>Actions</th>';
     h += '</tr></thead><tbody>';
@@ -926,7 +963,7 @@ function makeTable({ tblId, pgId, cntId, data, cols, actions, onBind, pageSize =
       if (actions) h += `<td><div class="btn-group">${actions(row)}</div></td>`;
       h += '</tr>';
     });
-    h += '</tbody></table>';
+    h += '</tbody></table></div>';
     tbl.innerHTML = h;
     if (onBind) onBind(slice);
 
@@ -1251,6 +1288,51 @@ document.getElementById('btn-confirm-reschedule').addEventListener('click', () =
   const woLabel = activeRescheduleWO ? activeRescheduleWO.wo : '—';
   toast(`WO ${woLabel} — rescheduled (${by}) to ${dt.replace('T',' ')} ✓`, 'ok');
   closeModal('modal-reschedule');
+});
+
+// ── TAB 5: WO Onsite ─────────────────────────────────────────────────────────
+const onsiteTable = makeTable({
+  tblId: 'tbl-onsite', pgId: 'pg-onsite', cntId: 'count-onsite',
+  data: ALL_WO,
+  pageSize: 15,
+  cols: [
+    { key: 'created_on',    label: 'Creation Date', render: r => esc(fmtDate(r.created_on)) },
+    { key: 'wo',            label: 'WO#' },
+    { key: 'sn',            label: 'SN' },
+    { key: 'product',       label: 'Product' },
+    { key: 'status',        label: 'Status',        render: r => statusBadge(r.status) },
+    { key: 'actual_asp',    label: 'Actual ASP' },
+    { key: 'origin_vendor', label: 'Origin Vendor ID' },
+    { key: 'part_desc',     label: 'Part Description' },
+    { key: 'status_part',   label: 'Status Part',   render: r => r.status_part ? statusBadge(r.status_part) : '—' },
+    { key: 'wh_ship',       label: 'WH Ship (LAPS)', render: r => esc(fmtDate(r.wh_ship)) },
+    { key: 'cust_name',     label: 'Customer Name' },
+    { key: 'cust_phone',    label: 'Customer Phone' },
+    { key: 'aging',         label: 'Aging' },
+    { key: 'aging_category',label: 'Aging Category' },
+    { key: 'kpi',           label: 'KPI' },
+  ],
+});
+onsiteTable.render();
+
+document.getElementById('search-onsite').addEventListener('input', e => {
+  const q  = e.target.value.toLowerCase();
+  const st = document.getElementById('filter-status-onsite').value;
+  onsiteTable.filter(r =>
+    (!q  || r.wo.toLowerCase().includes(q) || r.actual_asp.toLowerCase().includes(q) ||
+            r.product.toLowerCase().includes(q) || r.cust_name.toLowerCase().includes(q)) &&
+    (!st || r.status.toLowerCase().includes(st))
+  );
+});
+
+document.getElementById('filter-status-onsite').addEventListener('change', e => {
+  const st = e.target.value;
+  const q  = document.getElementById('search-onsite').value.toLowerCase();
+  onsiteTable.filter(r =>
+    (!q  || r.wo.toLowerCase().includes(q) || r.actual_asp.toLowerCase().includes(q) ||
+            r.product.toLowerCase().includes(q) || r.cust_name.toLowerCase().includes(q)) &&
+    (!st || r.status.toLowerCase().includes(st))
+  );
 });
 </script>
 

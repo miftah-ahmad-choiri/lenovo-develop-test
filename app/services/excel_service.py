@@ -1,45 +1,62 @@
 import os
-import openpyxl
-from datetime import datetime
+import pandas as pd
 from flask import current_app
 
 
-def fmt_date(val):
-    """Return formatted date string or empty string from an openpyxl cell value."""
+def _fmt(val):
+    """Return a clean string from any cell value (handles NaN, NaT, datetime)."""
     if val is None:
         return ""
-    if isinstance(val, datetime):
+    if isinstance(val, float) and val != val:  # float NaN
+        return ""
+    try:
+        if pd.isnull(val):
+            return ""
+    except (TypeError, ValueError):
+        pass
+    if hasattr(val, "strftime"):
         return val.strftime("%Y-%m-%d %H:%M")
-    return str(val)
+    return str(val).strip()
 
 
-def load_wo_data():
-    """Load work-order rows from the configured Excel file."""
+def load_wo_data() -> list[dict]:
+    """Load work-order rows from df_combined_final_report.xlsx."""
     excel_path = current_app.config["EXCEL_PATH"]
-    wb = openpyxl.load_workbook(excel_path, data_only=True)
-    ws = wb.active
-    rows = list(ws.iter_rows(values_only=True))
-    headers = rows[0]
+    df = pd.read_excel(excel_path, sheet_name=0)
+
     data = []
-    for r in rows[1:]:
-        if not any(r):
-            continue
-        row = dict(zip(headers, r))
+    for _, row in df.iterrows():
         data.append({
-            "wo":             str(row.get("Lenovo WO") or ""),
-            "contact":        str(row.get("Contact") or ""),
-            "pic":            str(row.get("PIC") or ""),
-            "created_on":     fmt_date(row.get("Created On")),
-            "order_date":     fmt_date(row.get("Order Date")),
-            "courier_pickup": fmt_date(row.get("Courier Pick Up")),
-            "month":          str(row.get("Month") or ""),
-            "parts_eta":      fmt_date(row.get("Parts ETA Date")),
-            "asp_received":   fmt_date(row.get("ASP Received Date & Time")),
-            "wo_closed":      fmt_date(row.get("Date & Time WO# Closed")),
-            "status":         str(row.get("Status") or ""),
-            "failed_reason":  str(row.get("Failed Reason") or ""),
-            "remark":         str(row.get("Remark") or ""),
-            "city":           str(row.get("City") or ""),
-            "product":        str(row.get("Product Category") or ""),
+            # keys used by both templates — mapped to new column names
+            "wo":             _fmt(row.get("WO#")),
+            "contact":        _fmt(row.get("Actual ASP")),
+            "pic":            _fmt(row.get("CE Name")),
+            "created_on":     _fmt(row.get("Creation Date")),
+            "order_date":     _fmt(row.get("Creation Date")),
+            "courier_pickup": _fmt(row.get("WH Ship      (LAPS)")),
+            "month":          "",
+            "parts_eta":      _fmt(row.get("Part ETA Date")),
+            "asp_received":   _fmt(row.get("Technician assign Date")),
+            "wo_closed":      _fmt(row.get("Fixed Date")),
+            "status":         _fmt(row.get("Status")),
+            "failed_reason":  _fmt(row.get("Reason")),
+            "remark":         _fmt(row.get("Remarks")),
+            "city":           _fmt(row.get("Customer Address")),
+            "product":        _fmt(row.get("Product")),
+            # extra fields available in new file
+            "sn":             _fmt(row.get("SN")),
+            "actual_asp":     _fmt(row.get("Actual ASP")),
+            "origin_asp":     _fmt(row.get("Origin ASP")),
+            "origin_vendor":  _fmt(row.get("Origin Vendor ID")),
+            "actual_vendor":  _fmt(row.get("Actual Vendor ID")),
+            "part_desc":      _fmt(row.get("Part Description")),
+            "status_part":    _fmt(row.get("Status Part")),
+            "cust_name":      _fmt(row.get("Customer Name")),
+            "cust_phone":     _fmt(row.get("Customer Phone No ")),
+            "aging":          _fmt(row.get("Aging")),
+            "aging_category": _fmt(row.get("Aging Category")),
+            "kpi":            _fmt(row.get("KPI\n(Pass / Failed)")),
+            "svc_desc":       _fmt(row.get("Service Order Description")),
+            "information":    _fmt(row.get("Information")),
         })
     return data

@@ -246,8 +246,7 @@
 <div class="topbar">
   <a class="topbar-brand" href="/">Lenovo <span>ASP</span> Portal</a>
   <nav class="topbar-nav">
-    <a href="/">Ticket Form</a>
-    <a href="/dashboard">WO Dashboard</a>
+    <a href="/">Dashboard</a>
     <a href="/upload-excel" class="active">Excel Upload</a>
   </nav>
 </div>
@@ -293,6 +292,59 @@
         Upload File
       </button>
     </form>
+  </div>
+
+  <!-- Action bar — Compile / Download / Reset -->
+  <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:20px 24px;margin-bottom:24px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:{% if report.exists %}14px{% else %}0{% endif %}">
+      <div>
+        <div style="font-size:15px;font-weight:700;margin-bottom:2px;">Report Actions</div>
+        {% if report.exists %}
+        <div style="font-size:12px;color:#57606a;">
+          Last compiled: <strong>{{ report.compiled_at }}</strong>
+          {% if report.latest_stamped %}
+          &nbsp;&bull;&nbsp; Latest file: <code style="font-size:11px;background:#f0f2f5;padding:1px 5px;border-radius:3px;">{{ report.latest_stamped }}</code>
+          {% endif %}
+        </div>
+        {% else %}
+        <div style="font-size:12px;color:#d97706;">No compiled report found yet. Upload files and click Compile Report.</div>
+        {% endif %}
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <form method="POST" action="/upload-excel/compile"
+              onsubmit="return confirm('Run the pipeline and recompile the report? This may take a minute.')">
+          <button type="submit" class="btn-upload" style="margin-top:0;width:auto;padding:9px 20px;background:#3b82d4;display:inline-flex;align-items:center;gap:6px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+            </svg>
+            Compile Report
+          </button>
+        </form>
+        {% if report.exists %}
+        <a href="/upload-excel/download"
+           class="btn-upload"
+           style="margin-top:0;width:auto;padding:9px 20px;background:#16a34a;text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          Download Masterfile
+        </a>
+        {% endif %}
+        <form method="POST" action="/upload-excel/reset"
+              onsubmit="return confirm('Delete ALL uploaded Excel files? This cannot be undone.')">
+          <button type="submit" class="btn-upload" style="margin-top:0;width:auto;padding:9px 20px;background:#dc2626;display:inline-flex;align-items:center;gap:6px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+              <path d="M10 11v6M14 11v6"/>
+            </svg>
+            Reset All Files
+          </button>
+        </form>
+      </div>
+    </div>
   </div>
 
   <!-- Uploaded files list -->

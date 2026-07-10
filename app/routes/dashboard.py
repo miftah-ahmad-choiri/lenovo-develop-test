@@ -9,13 +9,11 @@ dashboard_bp = Blueprint("dashboard", __name__)
 def dashboard():
     wo_data = load_wo_data()
 
-    # Part in Transit: WOs where ASP has not yet confirmed receipt
-    transit = [w for w in wo_data if not w["asp_received"]]
-    # Fall back to open/pending rows if all have received dates in test data
+    closed   = [w for w in wo_data if w["status"].lower() in ("completed", "closed")]
+    open_wo  = [w for w in wo_data if w["status"].lower() not in ("completed", "closed", "cancelled", "canceled")]
+    transit  = [w for w in wo_data if w["status_part"] and w["status_part"].lower() == "waiting part"]
     if not transit:
-        transit = [w for w in wo_data if w["status"] in ("Need Additional Part", "ASP Issue")]
-
-    closed = [w for w in wo_data if w["status"] == "Closed"]
+        transit = [w for w in wo_data if "part hold" in w["status"].lower()]
 
     return render_template(
         "dashboard.html",
@@ -24,6 +22,12 @@ def dashboard():
         closed_json=json.dumps(closed),
         total=len(wo_data),
         total_closed=len(closed),
-        total_open=len([w for w in wo_data if w["status"] != "Closed"]),
+        total_open=len(open_wo),
         total_transit=len(transit),
+        # onsite stat row reuses same data
+        onsite_total=len(wo_data),
+        onsite_open=len(open_wo),
+        onsite_part_hold=len([w for w in wo_data if "part hold" in w["status"].lower()]),
+        onsite_closed=len(closed),
+        onsite_json=json.dumps(wo_data),
     )
