@@ -9,8 +9,8 @@ import os
 # Root of the repository (3 levels up: wo_onsite/ → services/ → app/ → root)
 _ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
-# ── Input files (uploaded to uploads/excel/) ─────────────────────────────────
-EXCEL_DIR = os.path.join(_ROOT, "uploads", "excel")
+# ── Input files (uploaded to files/upload/excel/) ────────────────────────────
+EXCEL_DIR = os.path.join(_ROOT, "files", "upload", "excel")
 
 DEVI1_PATH  = os.path.join(EXCEL_DIR, "new_WO_Header_Status_-_Labor_Vendor_Updated_Open_WO_ONLY_7-7-2026_4-47-39_PM.xlsx")
 DEVI2_PATH  = os.path.join(EXCEL_DIR, "Masterfile_-_Cut_Jan_2026_-_Copy.xlsx")
@@ -19,7 +19,7 @@ DEVI4_PATH  = os.path.join(EXCEL_DIR, "Work_Order_Product_Advanced_Find_View_7-7
 DEVI12_PATH = os.path.join(EXCEL_DIR, "Vendor-mapping.xlsx")
 
 # ── Output files ──────────────────────────────────────────────────────────────
-EXCELS_DIR  = os.path.join(_ROOT, "excels")
+EXCELS_DIR  = os.path.join(_ROOT, "files", "download", "excel")
 OUTPUT_PATH = os.path.join(EXCELS_DIR, "df_combined_final_report.xlsx")
 
 # ── Final column order for the exported report ────────────────────────────────

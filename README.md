@@ -7,6 +7,7 @@ A Flask web application for managing Lenovo After-Sales Partner (ASP) work order
 ## Table of Contents
 
 - [Project Structure](#project-structure)
+- [Prerequisites](#prerequisites)
 - [Local Development](#local-development)
 - [Deploy to Render.com](#deploy-to-rendercom)
 - [Environment Variables](#environment-variables)
@@ -38,6 +39,37 @@ A Flask web application for managing Lenovo After-Sales Partner (ASP) work order
 
 ---
 
+## Prerequisites
+
+### Python (macOS via Homebrew)
+
+If you are on macOS and install Python via Homebrew, it will block system-wide `pip install` by default (PEP 668). The correct approach is to always use a virtual environment per project (covered in [Local Development](#local-development) below).
+
+To install Python via Homebrew and make the `python`, `python3`, and `py` commands all available:
+
+```zsh
+brew install python
+```
+
+Then add Homebrew's unversioned symlinks to your PATH (add to `~/.zshrc`):
+
+```zsh
+echo 'export PATH="/usr/local/opt/python@3.14/libexec/bin:$PATH"' >> ~/.zshrc
+echo 'export PATH="/usr/local/bin:$PATH"' >> ~/.zshrc
+echo "alias py='python3'" >> ~/.zshrc
+source ~/.zshrc
+```
+
+Verify all three shortcuts work:
+
+```zsh
+python --version   # Python 3.14.x
+python3 --version  # Python 3.14.x
+py --version       # Python 3.14.x
+```
+
+---
+
 ## Local Development
 
 ### 1. Clone the repository
@@ -59,11 +91,22 @@ python -m venv .venv
 source .venv/bin/activate
 ```
 
+> **macOS/Homebrew note:** Running `pip install` outside a virtual environment will fail with an `externally-managed-environment` error. Always activate `.venv` first — do **not** use `--break-system-packages` as it can corrupt your Homebrew Python installation.
+
+Every time you return to work on this project, re-activate the environment:
+
+```zsh
+source .venv/bin/activate   # activate
+deactivate                  # when done
+```
+
 ### 3. Install dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
+
+> **Note:** The `.venv/` folder is excluded from version control via `.gitignore`. Never commit it.
 
 ### 4. Run the development server
 
