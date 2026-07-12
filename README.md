@@ -1,16 +1,18 @@
-# Lenovo ASP Ticket Tracker
+# Lenovo ASP Portal
 
-A Flask web application for managing Lenovo After-Sales Partner (ASP) work orders, backed by Excel data.
+A Flask web application for managing Lenovo After-Sales Partner (ASP) work orders and admin operations, with a dual-portal interface backed by Excel data.
 
 ---
 
 ## Table of Contents
 
 - [Project Structure](#project-structure)
+- [Portal Overview](#portal-overview)
 - [Prerequisites](#prerequisites)
 - [Local Development](#local-development)
 - [Deploy to Render.com](#deploy-to-rendercom)
 - [Environment Variables](#environment-variables)
+- [File Persistence Note](#file-persistence-note)
 
 ---
 
@@ -19,23 +21,87 @@ A Flask web application for managing Lenovo After-Sales Partner (ASP) work order
 ```
 .
 ├── app/
-│   ├── __init__.py          # App factory (create_app)
+│   ├── __init__.py                      # App factory — registers all blueprints
+│   ├── config/
+│   │   ├── __init__.py
+│   │   └── settings.py                  # Flask config (paths, secret key)
 │   ├── routes/
-│   │   ├── ticket.py        # Work-order ticket routes
-│   │   └── excel_upload.py  # Excel upload routes
+│   │   ├── __init__.py
+│   │   ├── asp.py                       # ASP Portal routes (/asp/*)
+│   │   ├── admin.py                     # Admin Portal routes (/admin/*)
+│   │   ├── excel_upload.py              # Legacy /upload-excel routes (backward compat)
+│   │   └── ticket.py                    # Legacy ticket form route (backward compat)
 │   ├── services/
-│   │   ├── excel_service.py # Reads work-order data from Excel
-│   │   └── wo_onsite/       # On-site WO pipeline
-│   └── templates/           # Jinja2 HTML templates
-├── config/
-│   └── settings.py          # Flask config (paths, secret key)
-├── excels/                  # Output Excel reports (auto-created)
-├── uploads/                 # Uploaded Excel source files (auto-created)
-├── files/                   # Evidence file uploads (auto-created)
-├── render.yaml              # Render.com deployment config
-├── requirements.txt
-└── run.py                   # App entry point
+│   │   ├── __init__.py
+│   │   ├── excel_report/
+│   │   │   ├── __init__.py
+│   │   │   ├── config.py                # Column/sheet config for report reader
+│   │   │   └── reader.py                # Loads WO data from compiled Excel report
+│   │   ├── upload/
+│   │   │   ├── __init__.py
+│   │   │   ├── config.py                # Upload folder config
+│   │   │   ├── evidence.py              # Evidence file upload handler
+│   │   │   └── excel.py                 # Excel file upload/list handler
+│   │   └── wo_onsite/
+│   │       ├── __init__.py
+│   │       ├── config.py                # Pipeline column/sheet config
+│   │       ├── pipeline.py              # WO onsite compile pipeline
+│   │       └── transforms.py            # Data transformation logic
+│   └── templates/
+│       ├── base.html                    # Shared layout (topbar + collapsible left sidebar)
+│       ├── asp/
+│       │   ├── dashboard.html           # ASP Dashboard — stat cards, 5-tab table, modals
+│       │   ├── work_orders.html         # Work Orders — Active/Closed/Escalated/Pending
+│       │   ├── parts_management.html    # Parts Management — Awaiting/Received/Return
+│       │   ├── reschedule.html          # Reschedule Management
+│       │   └── escalation.html          # Escalation Center
+│       └── admin/
+│           ├── dashboard.html           # Admin Dashboard — quick-links overview
+│           ├── ticket_management.html   # Ticket Management
+│           ├── data_import.html         # Data Import/Export (upload + compile + download)
+│           ├── validation_center.html   # Validation Center (AWB & Reschedule)
+│           ├── user_management.html     # User & ASP Management
+│           └── system_archive.html      # System Archive (masterfiles & uploads)
+├── files/
+│   ├── upload/
+│   │   └── excel/                       # Uploaded source Excel files (auto-created)
+│   └── download/
+│       └── excel/                       # Compiled masterfile reports (auto-created)
+├── render.yaml                          # Render.com deployment config
+├── requirements.txt                     # Python dependencies
+└── run.py                               # App entry point
 ```
+
+---
+
+## Portal Overview
+
+The app exposes two portals via a switcher in the topbar. Both share the same `base.html` layout with a collapsible left sidebar (desktop) and a slide-in drawer (mobile).
+
+### ASP Portal (`/asp/*`)
+
+| Page | URL | Status |
+|---|---|---|
+| Dashboard | `/asp/dashboard` | ✅ Live — WO stat cards, 5-tab data table, modals |
+| Work Orders | `/asp/work-orders` | ✅ Live — Active / Closed / Escalated / Pending tabs |
+| Parts Management | `/asp/parts` | ✅ Live — Awaiting / Received / Return tabs |
+| Reschedule Management | `/asp/reschedule` | 🚧 In development |
+| Escalation Center | `/asp/escalation` | 🚧 In development |
+
+### Admin Portal (`/admin/*`)
+
+| Page | URL | Status |
+|---|---|---|
+| Dashboard | `/admin/dashboard` | 🚧 In development |
+| Ticket Management | `/admin/tickets` | 🚧 In development |
+| Data Import / Export | `/admin/data-import` | ✅ Live — Excel upload, compile, download masterfile |
+| Validation Center | `/admin/validation` | 🚧 In development |
+| User & ASP Management | `/admin/users` | 🚧 In development |
+| System Archive | `/admin/archive` | ✅ Live — Lists masterfiles and uploaded files |
+
+### Root redirect
+
+`GET /` → redirects to `/asp/dashboard`.
 
 ---
 
@@ -43,15 +109,13 @@ A Flask web application for managing Lenovo After-Sales Partner (ASP) work order
 
 ### Python (macOS via Homebrew)
 
-If you are on macOS and install Python via Homebrew, it will block system-wide `pip install` by default (PEP 668). The correct approach is to always use a virtual environment per project (covered in [Local Development](#local-development) below).
-
-To install Python via Homebrew and make the `python`, `python3`, and `py` commands all available:
+If you are on macOS and install Python via Homebrew, it will block system-wide `pip install` by default (PEP 668). Always use a virtual environment per project (covered in [Local Development](#local-development) below).
 
 ```zsh
 brew install python
 ```
 
-Then add Homebrew's unversioned symlinks to your PATH (add to `~/.zshrc`):
+Add Homebrew's unversioned symlinks to your PATH (add to `~/.zshrc`):
 
 ```zsh
 echo 'export PATH="/usr/local/opt/python@3.14/libexec/bin:$PATH"' >> ~/.zshrc
@@ -60,12 +124,12 @@ echo "alias py='python3'" >> ~/.zshrc
 source ~/.zshrc
 ```
 
-Verify all three shortcuts work:
+Verify:
 
 ```zsh
-python --version   # Python 3.14.x
-python3 --version  # Python 3.14.x
-py --version       # Python 3.14.x
+python --version   # Python 3.x
+python3 --version  # Python 3.x
+py --version       # Python 3.x
 ```
 
 ---
@@ -84,16 +148,16 @@ cd <repo-name>
 ```bash
 python -m venv .venv
 
-# Windows
-.venv\Scripts\activate
-
 # macOS / Linux
 source .venv/bin/activate
+
+# Windows
+.venv\Scripts\activate
 ```
 
-> **macOS/Homebrew note:** Running `pip install` outside a virtual environment will fail with an `externally-managed-environment` error. Always activate `.venv` first — do **not** use `--break-system-packages` as it can corrupt your Homebrew Python installation.
+> **macOS/Homebrew note:** Running `pip install` outside a virtual environment will fail with an `externally-managed-environment` error. Always activate `.venv` first.
 
-Every time you return to work on this project, re-activate the environment:
+Re-activate each time you return to work on the project:
 
 ```zsh
 source .venv/bin/activate   # activate
@@ -106,15 +170,15 @@ deactivate                  # when done
 pip install -r requirements.txt
 ```
 
-> **Note:** The `.venv/` folder is excluded from version control via `.gitignore`. Never commit it.
-
 ### 4. Run the development server
 
 ```bash
 python run.py
 ```
 
-The app will be available at **http://127.0.0.1:5000**.
+The app will be available at **http://127.0.0.1:5000** and will redirect to the ASP Dashboard.
+
+> **Chrome DevTools probe:** You may see `GET /.well-known/appspecific/com.chrome.devtools.json 404` in the console. This is harmless — Chrome sends it automatically on localhost and has no effect on the app.
 
 ---
 
@@ -127,11 +191,9 @@ The app will be available at **http://127.0.0.1:5000**.
 
 ### Step 1 — Push to GitHub
 
-Make sure all changes (including `render.yaml`) are committed and pushed:
-
 ```bash
 git add .
-git commit -m "Add render.yaml and gunicorn"
+git commit -m "your message"
 git push origin main
 ```
 
@@ -143,23 +205,23 @@ git push origin main
 
    | Setting | Value |
    |---|---|
-   | **Runtime** | Python |
+   | **Runtime** | Python 3.11 |
    | **Build Command** | `pip install -r requirements.txt` |
    | **Start Command** | `gunicorn run:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120` |
 
 4. Click **Create Web Service**.
 
-### Step 3 — Set environment variables (if needed)
+### Step 3 — Set environment variables
 
-In the Render dashboard go to your service → **Environment** tab and add any required variables (see [Environment Variables](#environment-variables) below).
+In the Render dashboard go to your service → **Environment** tab and add:
+
+| Variable | Value |
+|---|---|
+| `SECRET_KEY` | A long random string — see [Environment Variables](#environment-variables) |
 
 ### Step 4 — Deploy
 
-Render will automatically build and deploy on every push to `main`. You can also trigger a manual deploy from the dashboard via **Manual Deploy → Deploy latest commit**.
-
-### Subsequent deploys
-
-Every `git push origin main` triggers an automatic redeploy — no further action needed.
+Render automatically builds and deploys on every push to `main`. To trigger manually: **Manual Deploy → Deploy latest commit**.
 
 ---
 
@@ -167,13 +229,21 @@ Every `git push origin main` triggers an automatic redeploy — no further actio
 
 | Variable | Required | Description |
 |---|---|---|
-| `SECRET_KEY` | Recommended | Flask secret key for session security. Defaults to a hardcoded dev value — **always override in production**. |
-| `PORT` | Auto-set | Injected by Render at runtime. Do not set this manually. |
+| `SECRET_KEY` | **Recommended** | Flask session secret key. Defaults to a hardcoded dev value — always override in production. |
+| `PORT` | Auto-set | Injected by Render at runtime. Do not set manually. |
 
-To set `SECRET_KEY` on Render:
+Generate a secure `SECRET_KEY`:
 
-1. Go to your service → **Environment** tab.
-2. Click **Add Environment Variable**.
-3. Key: `SECRET_KEY`, Value: a long random string (e.g. output of `python -c "import secrets; print(secrets.token_hex(32))"`).
+```bash
+python -c "import secrets; print(secrets.token_hex(32))"
+```
 
-> **Note on file persistence:** Render's free tier uses an ephemeral filesystem — uploaded Excel files and generated reports in `uploads/` and `excels/` will be lost on each redeploy. For persistent storage, attach a [Render Disk](https://render.com/docs/disks) or store files in an external service (e.g. AWS S3).
+---
+
+## File Persistence Note
+
+Render's free tier uses an **ephemeral filesystem** — uploaded Excel files (`files/upload/excel/`) and compiled reports (`files/download/excel/`) are lost on each redeploy or instance restart.
+
+For persistent storage either:
+- Attach a [Render Disk](https://render.com/docs/disks) (paid), or
+- Store files in an external object store (e.g. AWS S3, Cloudflare R2)
