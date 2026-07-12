@@ -1,13 +1,18 @@
+"""
+Evidence file upload handler (images / PDFs submitted with tickets).
+
+Saves files to UPLOAD_FOLDER configured in the Flask app.
+"""
 import os
 from flask import current_app
 from werkzeug.utils import secure_filename
 
-ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "bmp", "webp", "pdf"}
+from app.services.upload.config import EVIDENCE_EXTENSIONS
 
 
 def allowed_file(filename: str) -> bool:
-    """Return True if the filename has an allowed extension."""
-    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+    """Return True if the filename has an allowed evidence extension."""
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in EVIDENCE_EXTENSIONS
 
 
 def save_upload(file_storage) -> str | None:

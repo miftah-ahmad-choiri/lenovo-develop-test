@@ -4,7 +4,7 @@ from flask import (
     Blueprint, render_template, request, redirect,
     url_for, flash, current_app, send_file,
 )
-from app.services.excel_upload_service import allowed_excel, save_excel_upload, list_excel_uploads
+from app.services.upload.excel import allowed_excel, save_excel_upload, list_excel_uploads
 from app.services.wo_onsite.pipeline import run_pipeline_to_buffer
 
 excel_upload_bp = Blueprint("excel_upload", __name__)

@@ -1,7 +1,7 @@
 import json
 from flask import Blueprint, render_template, request, redirect, url_for, flash
-from app.services.excel_service import load_wo_data
-from app.services.upload_service import allowed_file, save_upload
+from app.services.excel_report.reader import load_wo_data
+from app.services.upload.evidence import allowed_file, save_upload
 
 ticket_bp = Blueprint("ticket", __name__)
 
