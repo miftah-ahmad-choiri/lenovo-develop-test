@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+{% block title %}Data Import / Export — Admin Portal{% endblock %}
+
+{% block extra_styles %}
+  /* ── Upload card ──────────────────────────────────────────────────────── */
+  .upload-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 28px 32px;
+    margin-bottom: 20px;
+  }
+  .upload-card h2 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .upload-card .card-sub { font-size: 13px; color: #57606a; margin-bottom: 20px; }
+
+  /* Drop zone */
+  .drop-zone {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 10px; padding: 44px 24px;
+    background: #f7f8fa; border: 2px dashed #d0d7de; border-radius: 8px;
+    cursor: pointer; transition: background 0.15s, border-color 0.15s; text-align: center;
+  }
+  .drop-zone:hover, .drop-zone.dragover { background: #eef2fb; border-color: #3b82d4; }
+  .drop-zone svg { flex-shrink: 0; color: #3b82d4; }
+  .drop-zone .dz-title { font-size: 15px; font-weight: 600; color: #3b82d4; }
+  .drop-zone .dz-sub   { font-size: 12px; color: #57606a; }
+  #file-chosen { margin-top: 10px; font-size: 13px; color: #57606a; text-align: center; min-height: 20px; }
+  input[type="file"] { display: none; }
+
+  /* Buttons */
+  .btn-upload {
+    display: block; width: 100%; margin-top: 18px; padding: 11px 28px;
+    background: #16a34a; color: #fff; font-size: 14px; font-weight: 600;
+    border: none; border-radius: 6px; cursor: pointer; font-family: inherit; transition: background 0.15s;
+  }
+  .btn-upload:hover { background: #15803d; }
+  .btn-upload:disabled { background: #9ca3af; cursor: not-allowed; }
+
+  /* Action bar */
+  .action-bar { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px 24px; margin-bottom: 20px; }
+  .action-bar-top { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+  .action-bar h3 { font-size: 15px; font-weight: 700; margin-bottom: 2px; }
+  .action-bar .bar-sub { font-size: 12px; color: #57606a; }
+  .action-bar-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn-action {
+    display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px;
+    font-size: 13px; font-weight: 600; border: none; border-radius: 6px; cursor: pointer;
+    font-family: inherit; text-decoration: none; transition: background 0.15s;
+  }
+  .btn-action.blue   { background: #3b82d4; color: #fff; }
+  .btn-action.blue:hover   { background: #2563b0; }
+  .btn-action.green  { background: #16a34a; color: #fff; }
+  .btn-action.green:hover  { background: #15803d; }
+  .btn-action.red    { background: #dc2626; color: #fff; }
+  .btn-action.red:hover    { background: #b91c1c; }
+
+  /* File list */
+  .file-list-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; }
+  .file-list-header { padding: 14px 20px; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between; }
+  .file-list-header h2 { font-size: 15px; font-weight: 700; }
+  .file-count { font-size: 12px; font-weight: 600; background: #f0f2f5; border: 1px solid #e5e7eb; border-radius: 12px; padding: 2px 10px; color: #57606a; }
+
+  .file-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .file-table thead { background: #f7f8fa; }
+  .file-table th { padding: 10px 16px; text-align: left; font-size: 11px; font-weight: 700; color: #57606a; text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid #e5e7eb; white-space: nowrap; }
+  .file-table td { padding: 10px 16px; border-bottom: 1px solid #f0f2f5; vertical-align: middle; }
+  .file-table tr:last-child td { border-bottom: none; }
+  .file-table tbody tr:hover { background: #f7f8fa; }
+  .file-name { font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .file-name svg { flex-shrink: 0; color: #16a34a; }
+  .file-ext { font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 1px 6px; border-radius: 4px; background: #dcfce7; color: #15803d; letter-spacing: 0.04em; }
+  .file-ext.csv { background: #fef3c7; color: #92400e; }
+  .file-ext.xls { background: #dbeafe; color: #1e40af; }
+
+  .btn-delete { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; font-size: 12px; font-weight: 600; border: 1px solid #fca5a5; background: #fff0f0; color: #b91c1c; border-radius: 5px; cursor: pointer; font-family: inherit; transition: background 0.12s; }
+  .btn-delete:hover { background: #fee2e2; }
+
+  .empty-state { padding: 44px; text-align: center; color: #57606a; font-size: 13px; }
+  .empty-state svg { display: block; margin: 0 auto 12px; color: #d0d7de; }
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Data Import / Export</h1>
+  <p>Upload WO spreadsheets, compile the masterfile report, and download results.</p>
+</div>
+
+<!-- Upload card -->
+<div class="upload-card">
+  <h2>Upload a Spreadsheet</h2>
+  <p class="card-sub">Accepted formats: <strong>.xlsx</strong>, <strong>.xls</strong>, <strong>.csv</strong> &mdash; max 16 MB per file.</p>
+
+  <form method="POST" action="/admin/data-import/upload" enctype="multipart/form-data" id="upload-form">
+    <label class="drop-zone" for="excel_file" id="drop-zone">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="12" y1="18" x2="12" y2="12"/>
+        <polyline points="9 15 12 12 15 15"/>
+      </svg>
+      <span class="dz-title">Click to browse or drag &amp; drop</span>
+      <span class="dz-sub">.xlsx &bull; .xls &bull; .csv</span>
+    </label>
+    <input type="file" id="excel_file" name="excel_file" accept=".xlsx,.xls,.csv" />
+    <div id="file-chosen">No file chosen</div>
+    <button type="submit" class="btn-upload" id="submit-btn" disabled>Upload File</button>
+  </form>
+</div>
+
+<!-- Report Actions -->
+<div class="action-bar">
+  <div class="action-bar-top">
+    <div>
+      <h3>Report Actions</h3>
+      {% if report.exists %}
+      <div class="bar-sub">
+        Last compiled: <strong>{{ report.compiled_at }}</strong>
+        {% if report.latest_stamped %}
+        &nbsp;&bull;&nbsp; Latest file: <code style="font-size:11px;background:#f0f2f5;padding:1px 5px;border-radius:3px;">{{ report.latest_stamped }}</code>
+        {% endif %}
+      </div>
+      {% else %}
+      <div class="bar-sub" style="color:#d97706;">No compiled report found yet. Upload files and click Compile Report.</div>
+      {% endif %}
+    </div>
+    <div class="action-bar-btns">
+      <form method="POST" action="/admin/data-import/compile"
+            onsubmit="return confirm('Run the pipeline and recompile the report? This may take a minute.')">
+        <button type="submit" class="btn-action blue">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          Compile Report
+        </button>
+      </form>
+      {% if report.exists %}
+      <a href="/admin/data-import/download" class="btn-action green">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download Masterfile
+      </a>
+      {% endif %}
+      <form method="POST" action="/admin/data-import/reset"
+            onsubmit="return confirm('Delete ALL uploaded Excel files? This cannot be undone.')">
+        <button type="submit" class="btn-action red">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+          Reset All Files
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Uploaded files list -->
+<div class="file-list-card">
+  <div class="file-list-header">
+    <h2>Uploaded Files</h2>
+    <span class="file-count">{{ files | length }} file{{ 's' if files | length != 1 else '' }}</span>
+  </div>
+
+  {% if files %}
+  <table class="file-table">
+    <thead>
+      <tr>
+        <th>File Name</th>
+        <th>Size</th>
+        <th>Last Modified</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for f in files %}
+      <tr>
+        <td>
+          <div class="file-name">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            {{ f.name }}
+            <span class="file-ext {% if f.name.endswith('.csv') %}csv{% elif f.name.endswith('.xls') %}xls{% endif %}">
+              {{ f.name.rsplit('.', 1)[-1] }}
+            </span>
+          </div>
+        </td>
+        <td>{{ f.size_kb }} KB</td>
+        <td>{{ f.modified_fmt }}</td>
+        <td>
+          <form method="POST" action="/admin/data-import/delete/{{ f.name }}"
+                onsubmit="return confirm('Delete {{ f.name }}?')">
+            <button type="submit" class="btn-delete">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+              Delete
+            </button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+    No Excel files uploaded yet.
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  const input    = document.getElementById('excel_file');
+  const label    = document.getElementById('drop-zone');
+  const chosen   = document.getElementById('file-chosen');
+  const submitBtn = document.getElementById('submit-btn');
+
+  input.addEventListener('change', () => {
+    if (input.files.length > 0) {
+      chosen.textContent = input.files[0].name;
+      submitBtn.disabled = false;
+    } else {
+      chosen.textContent = 'No file chosen';
+      submitBtn.disabled = true;
+    }
+  });
+
+  label.addEventListener('dragover', e => { e.preventDefault(); label.classList.add('dragover'); });
+  label.addEventListener('dragleave', ()  => label.classList.remove('dragover'));
+  label.addEventListener('drop', e => {
+    e.preventDefault();
+    label.classList.remove('dragover');
+    if (e.dataTransfer.files.length > 0) {
+      input.files = e.dataTransfer.files;
+      chosen.textContent = e.dataTransfer.files[0].name;
+      submitBtn.disabled = false;
+    }
+  });
+</script>
+{% endblock %}

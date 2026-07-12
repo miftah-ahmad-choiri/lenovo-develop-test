@@ -1,8 +1,9 @@
 import os
-from flask import Flask
+from flask import Flask, redirect, url_for
 from app.config import Config
-from app.routes.ticket import ticket_bp
 from app.routes.excel_upload import excel_upload_bp
+from app.routes.asp import asp_bp
+from app.routes.admin import admin_bp
 
 
 def create_app():
@@ -14,7 +15,14 @@ def create_app():
     os.makedirs(app.config["EXCEL_UPLOAD_FOLDER"], exist_ok=True)  # files/upload/excel/
     os.makedirs(app.config["EXCELS_DIR"],          exist_ok=True)  # files/download/excel/
 
-    app.register_blueprint(ticket_bp)
-    app.register_blueprint(excel_upload_bp)
+    # Register blueprints
+    app.register_blueprint(excel_upload_bp)  # legacy: /upload-excel (kept for backward compat)
+    app.register_blueprint(asp_bp)           # /asp/*
+    app.register_blueprint(admin_bp)         # /admin/*
+
+    # Root → ASP dashboard
+    @app.route("/")
+    def root():
+        return redirect(url_for("asp.dashboard"))
 
     return app
