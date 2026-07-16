@@ -12,7 +12,7 @@ import os
 from datetime import datetime
 import pandas as pd
 
-from app.services.wo_onsite.config import (
+from app.config.pipeline_config import (
     DEVI1_PATH, DEVI2_PATH, DEVI3_PATH, DEVI4_PATH, DEVI12_PATH,
     OUTPUT_PATH, EXCELS_DIR, FINAL_COLUMNS_ORDER,
 )
