@@ -312,24 +312,3 @@ pip install -r requirements.txt
 ```
 
 > The `.venv` folder should never be committed to Git. Confirm `.gitignore` contains `.venv/`.
-
----
-
-### `OSError: [Errno 22] Invalid argument` when running `python run.py`
-
-**Symptom:**
-```
-OSError: [Errno 22] Invalid argument
-  File "<frozen importlib._bootstrap_external>", line 951, in get_data
-```
-
-**Cause:** Stale `__pycache__` folders (compiled `.pyc` bytecode from Python 3.11) were committed to Git and are now invalid under Python 3.14. Windows raises `[Errno 22]` when the bytecode magic number mismatches and the path contains characters it cannot decode.
-
-**Fix** — delete all project-level `__pycache__` directories (excludes `.venv`):
-```powershell
-Get-ChildItem -Recurse -Filter "__pycache__" -Directory |
-  Where-Object { $_.FullName -notlike "*\.venv\*" } |
-  Remove-Item -Recurse -Force
-```
-
-Python will regenerate fresh `.pyc` files for the current Python version on the next run. To prevent this recurring, ensure `__pycache__/` is in `.gitignore`.

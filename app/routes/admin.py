@@ -8,6 +8,9 @@ from flask import (
 from werkzeug.utils import secure_filename
 from app.services.upload.excel import allowed_excel, save_excel_upload, list_excel_uploads
 from app.services.upload.upload_verification import verify_uploaded_file
+from app.services.upload.excel_to_df import (
+    load_single_dataframe, DF_LABELS, _KEY_TO_DF,
+)
 from app.services.wo_onsite.pipeline import run_pipeline_to_buffer
 from app.config.pipeline_config import FILE_CATEGORY_CONFIGS
 
@@ -318,6 +321,44 @@ def data_import_download():
         return redirect(url_for("admin.data_import"))
     return send_file(filepath, as_attachment=True, download_name=download_name,
                      mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
+# ── DataFrame Viewer ─────────────────────────────────────────────────────────
+
+@admin_bp.route("/admin/data-import/view/<category_key>", methods=["GET"])
+def data_import_view(category_key: str):
+    """Render a full-table view for the uploaded file matching *category_key*.
+    All rows are sent to the template; pagination and search are handled client-side.
+    """
+    category_key = category_key.upper()
+    if category_key not in FILE_CATEGORY_CONFIGS:
+        flash(f'Unknown category "{category_key}".', "danger")
+        return redirect(url_for("admin.data_import"))
+
+    df = load_single_dataframe(category_key)
+    df_name = _KEY_TO_DF.get(category_key, "")
+    label   = DF_LABELS.get(df_name, category_key)
+    cfg     = FILE_CATEGORY_CONFIGS[category_key]
+
+    if df is None:
+        flash(f'No uploaded file found for category "{label}".', "warning")
+        return redirect(url_for("admin.data_import"))
+
+    headers = df.columns.tolist()
+    rows    = df.values.tolist()
+
+    return render_template(
+        "admin/df_viewer.html",
+        df_name=df_name,
+        label=label,
+        source_file=cfg.get("source_file", ""),
+        headers=headers,
+        rows=rows,
+        total_rows=len(df),
+        total_cols=len(headers),
+        portal="admin",
+        active_page="data_import",
+    )
 
 
 # ── Validation Center ────────────────────────────────────────────────────────
